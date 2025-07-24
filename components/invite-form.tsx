@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import AILoadingScreen from "./load-screen";
 
 const AIInviteForm = () => {
   const [formData, setFormData] = useState({
@@ -27,6 +28,7 @@ const AIInviteForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [showPreview, setShowPreview] = useState({});
   const [colorSchemeIndex, setColorSchemeIndex] = useState(0);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(false);
 
   // Color schemes data
   const colorSchemes = [
@@ -151,13 +153,15 @@ const AIInviteForm = () => {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Form submitted:", formData);
-      setIsSubmitting(false);
-      // Here you would redirect to the loading page
-    }, 2000);
+    setShowLoadingScreen(true);
+  };
+
+  // Handle loading completion
+  const handleLoadingComplete = () => {
+    setShowLoadingScreen(false);
+    setIsSubmitting(false);
+    // Here you would redirect to the generated invitation or show success message
+    console.log("Invitation generated for:", formData.eventTitle);
   };
 
   // Color Scheme Carousel Component
@@ -849,6 +853,13 @@ const AIInviteForm = () => {
           </div>
         </motion.form>
       </div>
+
+      {/* AI Loading Screen */}
+      <AILoadingScreen
+        eventTitle={formData.eventTitle || "Your Event"}
+        isVisible={showLoadingScreen}
+        onComplete={handleLoadingComplete}
+      />
     </div>
   );
 };
