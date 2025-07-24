@@ -1,4 +1,4 @@
-# InviteAI ⚡ [WIP]
+# invyte AI ⚡ [WIP]
 
 An AI-powered web application that generates beautiful event invitations as dynamic landing pages. Create stunning, personalized invites for any occasion with the power of artificial intelligence.
 
@@ -68,10 +68,10 @@ pnpm dev
 └── styles/             # Global styles
 ```
 
-## 🤝 Contributing
+<!-- ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is open source and available under the [MIT License](LICENSE). -->

@@ -84,7 +84,7 @@ const AIInviteHomePage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <span className="font-bold text-xl">InviteAI</span>
+              <span className="font-bold text-xl">invyte AI</span>
             </motion.div>
             <div className="hidden md:flex items-center space-x-6">
               <button
@@ -524,9 +524,9 @@ const AIInviteHomePage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <span className="font-bold text-xl">InviteAI</span>
+              <span className="font-bold text-xl">invyte AI</span>
             </div>
-            <div className="text-gray-400">© 2025 InviteAI. Created with ❤️  from Cape Town.</div>
+            <div className="text-gray-400">© 2025 invyte AI. Created with ❤️  from Cape Town.</div>
           </div>
         </div>
       </footer>
