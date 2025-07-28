@@ -17,20 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: { inviteId
       )
     }
 
-    const inviteData = {
-      id: dbData.id,
-      code: dbData.generated_code,
-      formData: dbData.form_data,
-      createdAt: dbData.created_at,
-    }
 
     // Increment view count asynchronously
     DatabaseUtils.incrementViewCount(inviteId).catch(console.error)
 
-    return NextResponse.json({
-      success: true,
-      invite: inviteData,
-    })
+    return NextResponse.json(dbData)
   } catch (error) {
     console.error("Error fetching invite:", error)
     return NextResponse.json(
