@@ -5,10 +5,11 @@ const AILoadingScreen = ({
   eventTitle = "Your Event", 
   userImage = null,
   isVisible = true,
+  progress = 0,
   onComplete = () => {} 
 }) => {
   const [currentMessage, setCurrentMessage] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [internalProgress, setInternalProgress] = useState(0);
   const [dots, setDots] = useState("");
 
   // Loading messages that cycle through
@@ -30,22 +31,30 @@ const AILoadingScreen = ({
     return () => clearInterval(messageInterval);
   }, []);
 
-  // Animate progress bar
+  // Use external progress or internal animation
   useEffect(() => {
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          // Simulate completion after reaching 100%
-          setTimeout(() => onComplete(), 1000);
-          return 100;
-        }
-        return prev + Math.random() * 15; // Random increment for realistic feel
-      });
-    }, 500);
-
-    return () => clearInterval(progressInterval);
-  }, [onComplete]);
+    if (progress > 0) {
+      // Use external progress
+      setInternalProgress(progress);
+      if (progress >= 100) {
+        setTimeout(() => onComplete(), 1000);
+      }
+    } else {
+      // Animate progress bar internally
+      const progressInterval = setInterval(() => {
+        setInternalProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            setTimeout(() => onComplete(), 1000);
+            return 100;
+          }
+          return prev + Math.random() * 15;
+        });
+      }, 500);
+      
+      return () => clearInterval(progressInterval);
+    }
+  }, [progress, onComplete]);
 
   // Animate dots for loading text
   useEffect(() => {
@@ -204,13 +213,13 @@ const AILoadingScreen = ({
           >
             <div className="flex justify-between text-xs text-gray-400 mb-2">
               <span>AI Generation</span>
-              <span>{Math.round(progress)}%</span>
+              <span>{Math.round(internalProgress)}%</span>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
               <motion.div
                 className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
                 initial={{ width: "0%" }}
-                animate={{ width: `${Math.min(progress, 100)}%` }}
+                animate={{ width: `${Math.min(internalProgress, 100)}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
               />
             </div>
