@@ -75,6 +75,21 @@ function generateEnhancedPrompt(formData: any) {
 
   // Detect if this is a milestone event
   const isMilestone = eventTitle.match(/\d+/) || eventDescription.match(/\d+(st|nd|rd|th)/)
+  
+  // Format date for better display
+  const formattedDate = eventDate ? new Date(eventDate).toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  }) : eventDate
+
+  // Convert 24h time to 12h format
+  const formattedTime = eventTime ? new Date(`2000-01-01T${eventTime}`).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }) : eventTime
 
   const prompt = `
 Create a React component for a mobile-first ${eventType} invitation landing page with a ${stylePreference} design style.
@@ -82,22 +97,24 @@ Create a React component for a mobile-first ${eventType} invitation landing page
 EVENT CONTEXT:
 - Event Type: ${eventType} (${eventTemplate.tone})
 - Title: ${eventTitle}
-- Date: ${eventDate}
-- Time: ${eventTime}
+- Date: ${formattedDate}
+- Time: ${formattedTime}
 - Venue: ${venue}
 ${dressCode ? `- Dress Code: ${dressCode}` : ""}
 ${eventTheme ? `- Theme: ${eventTheme}` : ""}
-${colorScheme ? `- Color Scheme: ${colorScheme}` : ""}
+${colorScheme ? `- Color Scheme: ${colorScheme} palette` : ""}
 ${isMilestone ? `- Special Milestone: Yes` : ""}
 
 DESCRIPTION:
 ${eventDescription}
 
 DESIGN SPECIFICATIONS:
-- Style: ${stylePreference} design with ${eventTemplate.colors} colors
-- Typography: Modern, readable fonts
+- Style: ${stylePreference} design with ${colorScheme ? `${colorScheme} color palette` : eventTemplate.colors} colors
+${colorScheme ? `- Color Theme: Use ${colorScheme} as primary color inspiration (sophisticated ${colorScheme.toLowerCase()} tones)` : ""}
+- Typography: Modern, readable fonts with proper hierarchy
 - Animation Style: ${eventTemplate.animations}
 - Key Elements: ${eventTemplate.elements.join(", ")}
+- Layout: Card-based sections with smooth transitions
 
 REQUIRED SECTIONS:
 1. Hero Section
@@ -112,9 +129,11 @@ REQUIRED SECTIONS:
    - What to expect
 
 3. Countdown Timer
-   - Dynamic countdown to event date/time
+   - Dynamic countdown to ${formattedDate} at ${formattedTime}
    - Elegant display with days, hours, minutes, seconds
-   - Zero state message when event arrives
+   - Zero state message when event arrives: "The celebration has begun!"
+   - Use setInterval to update every second
+   - Visual emphasis with animations
 
 4. Venue/Location Section
    - Venue name and address
@@ -132,10 +151,12 @@ ${
 }
 
 6. RSVP Section
-   - Clear call-to-action
-   ${rsvpWhatsApp ? `- WhatsApp button with pre-filled message to ${rsvpWhatsApp}` : ""}
-   ${rsvpContact ? `- Call button for ${rsvpContact}` : ""}
+   - Clear call-to-action with urgency
+   ${rsvpWhatsApp ? `- WhatsApp button linking to https://wa.me/${rsvpWhatsApp.replace(/[^0-9]/g, '')}?text=Hi! I'd like to RSVP for ${eventTitle} on ${formattedDate}` : ""}
+   ${rsvpContact ? `- Call button linking to tel:${rsvpContact}` : ""}
+   ${!rsvpWhatsApp && !rsvpContact ? `- Contact form or email RSVP option` : ""}
    - RSVP deadline prominently displayed
+   - Multiple RSVP options for convenience
 
 TECHNICAL REQUIREMENTS:
 - Single self-contained React component named "InviteComponent"
@@ -149,9 +170,10 @@ TECHNICAL REQUIREMENTS:
 - Use React hooks (useState, useEffect) for interactivity
 
 IMAGES TO INCORPORATE:
-${uploadedImages.hero ? "- Hero background: Use the provided hero image URL" : ""}
-${uploadedImages.logo ? "- Event logo: Use the provided logo URL (place in hero and footer)" : ""}
-${uploadedImages.themeImages?.length ? `- Theme images: ${uploadedImages.themeImages.length} additional images provided` : ""}
+${uploadedImages.hero ? `- Hero background: Use the provided hero image URL as main background with overlay for readability` : "- Create an elegant gradient or pattern background that matches the color scheme"}
+${uploadedImages.logo ? `- Event logo: Use the provided logo URL prominently in hero section and footer` : ""}
+${uploadedImages.themeImages?.length ? `- Theme images: ${uploadedImages.themeImages.length} additional images provided - use in gallery section or as decorative elements` : ""}
+${uploadedImages.additional?.length ? `- Additional images: ${uploadedImages.additional.length} more images for content enhancement` : ""}
 
 Remember to:
 1. Use modern React hooks (useState, useEffect)
