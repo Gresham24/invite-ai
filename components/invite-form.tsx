@@ -339,4 +339,3 @@ const AIInviteForm = () => {
 };
 
 export default AIInviteForm;
-EOF < /dev/null
