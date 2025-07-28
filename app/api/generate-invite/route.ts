@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import Anthropic from "@anthropic-ai/sdk"
-import { sql } from "@vercel/postgres"
+import { DatabaseUtils } from "@/lib/supabase-utils"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -40,34 +40,6 @@ const eventTemplates = {
   },
 }
 
-// Style complexity templates
-const styleTemplates = {
-  minimalist: {
-    description: "Clean lines, lots of whitespace, subtle animations",
-    sections: ["hero", "details", "rsvp"],
-    fontStyle: "modern sans-serif",
-    animations: "subtle fade-ins and smooth scrolls",
-  },
-  elegant: {
-    description: "Sophisticated typography, refined color palette, graceful animations",
-    sections: ["hero", "story", "details", "venue", "dress code", "rsvp"],
-    fontStyle: "serif for headings, sans-serif for body",
-    animations: "elegant reveals, parallax effects",
-  },
-  playful: {
-    description: "Fun animations, bright colors, interactive elements",
-    sections: ["hero", "countdown", "details", "activities", "rsvp"],
-    fontStyle: "rounded, friendly fonts",
-    animations: "bouncy effects, floating elements, confetti",
-  },
-  modern: {
-    description: "Bold typography, geometric shapes, dynamic transitions",
-    sections: ["hero", "about", "schedule", "location", "rsvp"],
-    fontStyle: "bold sans-serif, high contrast",
-    animations: "slide transitions, morphing shapes",
-  },
-}
-
 function detectEventType(title: string, description: string): keyof typeof eventTemplates {
   const combined = `${title} ${description}`.toLowerCase()
 
@@ -100,7 +72,6 @@ function generateEnhancedPrompt(formData: any) {
   const stylePreference = eventTheme || "elegant"
 
   const eventTemplate = eventTemplates[eventType] || eventTemplates.birthday
-  const styleTemplate = styleTemplates[stylePreference as keyof typeof styleTemplates] || styleTemplates.elegant
 
   // Detect if this is a milestone event
   const isMilestone = eventTitle.match(/\d+/) || eventDescription.match(/\d+(st|nd|rd|th)/)
@@ -123,10 +94,9 @@ DESCRIPTION:
 ${eventDescription}
 
 DESIGN SPECIFICATIONS:
-- Style: ${styleTemplate.description}
-- Color Palette: ${eventTemplate.colors} ${eventTheme ? `with ${eventTheme} theme elements` : ""}
-- Typography: ${styleTemplate.fontStyle}
-- Animation Style: ${styleTemplate.animations}
+- Style: ${stylePreference} design with ${eventTemplate.colors} colors
+- Typography: Modern, readable fonts
+- Animation Style: ${eventTemplate.animations}
 - Key Elements: ${eventTemplate.elements.join(", ")}
 
 REQUIRED SECTIONS:
@@ -143,7 +113,7 @@ REQUIRED SECTIONS:
 
 3. Countdown Timer
    - Dynamic countdown to event date/time
-   - ${stylePreference === "playful" ? "Fun animated numbers" : "Elegant display"}
+   - Elegant display with days, hours, minutes, seconds
    - Zero state message when event arrives
 
 4. Venue/Location Section
@@ -183,50 +153,6 @@ ${uploadedImages.hero ? "- Hero background: Use the provided hero image URL" : "
 ${uploadedImages.logo ? "- Event logo: Use the provided logo URL (place in hero and footer)" : ""}
 ${uploadedImages.themeImages?.length ? `- Theme images: ${uploadedImages.themeImages.length} additional images provided` : ""}
 
-SPECIAL FEATURES FOR ${eventType.toUpperCase()}:
-${
-  eventType === "birthday"
-    ? `
-- Age-specific decorations (balloons, confetti)
-- Birthday countdown with cake animation
-- Special message section for birthday person
-`
-    : ""
-}
-${
-  eventType === "wedding"
-    ? `
-- Romantic animations (hearts, rose petals)
-- Wedding party section
-- Registry/gift information
-- Hashtag for social media
-`
-    : ""
-}
-
-ANIMATION SPECIFICATIONS:
-${
-  stylePreference === "playful"
-    ? `
-- Confetti on load
-- Bouncing elements
-- Hover effects on all interactive elements
-- Fun scroll animations
-`
-    : stylePreference === "elegant"
-      ? `
-- Subtle fade-ins
-- Smooth parallax scrolling
-- Elegant hover states
-- Graceful transitions
-`
-      : `
-- Clean transitions
-- Professional animations
-- Minimal but effective motion
-`
-}
-
 Remember to:
 1. Use modern React hooks (useState, useEffect)
 2. Include all styles with Tailwind CSS classes
@@ -245,6 +171,17 @@ Export the component as default.`
 export async function POST(request: NextRequest) {
   try {
     const { inviteId, formData, uploadedImages } = await request.json()
+
+    // Validate required fields
+    if (!inviteId || !formData) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing required fields",
+        },
+        { status: 400 },
+      )
+    }
 
     // Enrich form data with uploaded images
     const enrichedFormData = {
@@ -277,16 +214,21 @@ export async function POST(request: NextRequest) {
       .replace(/```\n?/g, "")
       .trim()
 
-    // Store the invite data in the database
-    await sql`
-      INSERT INTO invites (id, form_data, generated_code, uploaded_images, created_at)
-      VALUES (${inviteId}, ${JSON.stringify(enrichedFormData)}, ${cleanCode}, ${JSON.stringify(uploadedImages)}, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        form_data = ${JSON.stringify(enrichedFormData)},
-        generated_code = ${cleanCode},
-        uploaded_images = ${JSON.stringify(uploadedImages)},
-        updated_at = NOW()
-    `
+    // Prepare invite data
+    const inviteData = {
+      id: inviteId,
+      formData: enrichedFormData,
+      generatedCode: cleanCode,
+      userEmail: formData.userEmail || null,
+    }
+
+    // Save to Supabase database
+    try {
+      await DatabaseUtils.saveInvite(inviteData)
+    } catch (dbError) {
+      console.error("Error saving to database:", dbError)
+      // Continue even if database save fails
+    }
 
     return NextResponse.json({
       success: true,
