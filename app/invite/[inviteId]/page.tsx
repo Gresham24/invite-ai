@@ -18,14 +18,8 @@ async function getInvite(inviteId: string) {
   }
 }
 
-export default async function InvitePage({ params }: { params: { inviteId: string } }) {
-  const inviteData = await getInvite(params.inviteId)
-
-  if (!inviteData || !inviteData.success) {
-    notFound()
-  }
-
-  return <InviteRenderer inviteData={inviteData.invite} />
+export default function InvitePage({ params }: { params: { inviteId: string } }) {
+  return <InviteRenderer inviteId={params.inviteId} />
 }
 
 export async function generateMetadata({ params }: { params: { inviteId: string } }) {
