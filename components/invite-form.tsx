@@ -159,6 +159,7 @@ const AIInviteForm = () => {
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (currentStep !== 4) return;
     if (!validateForm()) return;
 
     setIsSubmitting(true);
@@ -516,6 +517,11 @@ const AIInviteForm = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && currentStep !== 4) {
+              e.preventDefault();
+            }
+          }}
           className="bg-white rounded-2xl shadow-lg p-6 md:p-8"
         >
           <AnimatePresence mode="wait">
@@ -915,7 +921,12 @@ const AIInviteForm = () => {
 
             <motion.button
               type={currentStep === 4 ? "submit" : "button"}
-              onClick={currentStep === 4 ? undefined : () => setCurrentStep(Math.min(4, currentStep + 1))}
+              onClick={currentStep === 4 ? undefined : (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Next button clicked, currentStep:', currentStep);
+                setCurrentStep(Math.min(4, currentStep + 1));
+              }}
               disabled={isSubmitting}
               whileHover={{ scale: isSubmitting ? 1 : 1.02 }}
               whileTap={{ scale: isSubmitting ? 1 : 0.98 }}
