@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import AILoadingScreen from "./load-screen";
+import { generateInvite, uploadImages, handleApiError, APIError } from "@/lib/api-client";
+import { v4 as uuidv4 } from 'uuid';\nimport { useToast } from \"@/hooks/use-toast\";
 
 const AIInviteForm = () => {
   const [formData, setFormData] = useState({
@@ -29,6 +32,10 @@ const AIInviteForm = () => {
   const [showPreview, setShowPreview] = useState({});
   const [colorSchemeIndex, setColorSchemeIndex] = useState(0);
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  const router = useRouter();\n  const { toast } = useToast();
 
   // Color schemes data
   const colorSchemes = [
@@ -154,14 +161,78 @@ const AIInviteForm = () => {
 
     setIsSubmitting(true);
     setShowLoadingScreen(true);
+    setApiError(null);
+
+    try {
+      // Generate unique invite ID
+      const inviteId = uuidv4();
+      
+      // Step 1: Upload images first if any exist
+      let uploadedImages = {};
+      
+      const filesToUpload = {
+        heroImage: formData.heroImage ? [formData.heroImage] : undefined,
+        eventLogo: formData.eventLogo ? [formData.eventLogo] : undefined,
+        themeImages: formData.themeImages.length > 0 ? formData.themeImages : undefined,
+        additionalImages: formData.additionalImages.length > 0 ? formData.additionalImages : undefined,
+      };
+      
+      // Check if there are any files to upload
+      const hasFilesToUpload = Object.values(filesToUpload).some(files => files && files.length > 0);
+      
+      if (hasFilesToUpload) {
+        console.log('Uploading images...');
+        setUploadProgress(25);
+        
+        const uploadResponse = await uploadImages(inviteId, filesToUpload);
+        uploadedImages = uploadResponse.uploadedImages;
+        setUploadProgress(50);
+      }
+      
+      // Step 2: Generate the invite
+      console.log('Generating invite...');
+      setUploadProgress(75);
+      
+      const generateResponse = await generateInvite({
+        inviteId,
+        formData: {
+          eventTitle: formData.eventTitle,
+          eventDate: formData.eventDate,
+          eventTime: formData.eventTime,
+          venue: formData.venue,
+          dressCode: formData.dressCode,
+          eventTheme: formData.eventTheme,
+          colorScheme: formData.colorScheme,
+          rsvpWhatsApp: formData.rsvpWhatsApp,
+          rsvpContact: formData.rsvpContact,
+          eventDescription: formData.eventDescription,
+          userEmail: 'user@example.com', // TODO: Get from auth context
+        },
+        uploadedImages,
+      });
+      
+      setUploadProgress(100);
+      
+      // Success! Redirect to the generated invite
+      console.log('Invite generated successfully:', generateResponse);
+      
+      // Wait a moment for the loading screen to complete
+      setTimeout(() => {
+        router.push(generateResponse.inviteUrl);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error generating invite:', error);
+      setApiError(handleApiError(error));
+      setShowLoadingScreen(false);
+      setIsSubmitting(false);
+    }
   };
 
   // Handle loading completion
   const handleLoadingComplete = () => {
-    setShowLoadingScreen(false);
-    setIsSubmitting(false);
-    // Here you would redirect to the generated invitation or show success message
-    console.log("Invitation generated for:", formData.eventTitle);
+    // This will be handled by the submission flow now
+    // Loading screen will be hidden when navigation occurs
   };
 
   // Color Scheme Carousel Component
@@ -789,6 +860,31 @@ const AIInviteForm = () => {
                   </div>
                 </div>
 
+                {/* API Error Display */}
+                {apiError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"
+                  >
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div>
+                        <h4 className="font-semibold text-red-800">Error</h4>
+                        <p className="text-red-700 text-sm mt-1">{apiError}</p>
+                        <button
+                          onClick={() => setApiError(null)}
+                          className="text-red-600 hover:text-red-800 text-sm underline mt-2"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start">
                     <svg className="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -859,6 +955,7 @@ const AIInviteForm = () => {
         eventTitle={formData.eventTitle || "Your Event"}
         isVisible={showLoadingScreen}
         onComplete={handleLoadingComplete}
+        progress={uploadProgress}
       />
     </div>
   );
