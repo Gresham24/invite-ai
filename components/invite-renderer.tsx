@@ -7,26 +7,65 @@ interface InviteRendererProps {
   inviteId: string
 }
 
-// Function to dynamically create component from code string
+// Function to safely create component from code string
 const createComponentFromCode = (code: string) => {
   try {
-    // Create a function that returns the component
+    // Basic validation - check for dangerous patterns
+    const dangerousPatterns = [
+      /eval\s*\(/,
+      /Function\s*\(/,
+      /setTimeout\s*\(/,
+      /setInterval\s*\(/,
+      /document\./,
+      /window\./,
+      /global\./,
+      /process\./,
+      /require\s*\(/,
+      /import\s*\(/,
+      /__dirname/,
+      /__filename/,
+    ];
+    
+    const hasDangerousCode = dangerousPatterns.some(pattern => pattern.test(code));
+    if (hasDangerousCode) {
+      console.warn('Generated code contains potentially dangerous patterns');
+      throw new Error('Generated code failed security validation');
+    }
+    
+    // Limit code length
+    if (code.length > 50000) {
+      throw new Error('Generated code is too large');
+    }
+    
+    // Create a safer function that returns the component
     const componentFunction = new Function(
       "React",
       `
+      "use strict";
       const { useState, useEffect } = React;
-      ${code}
-      return InviteComponent || App || Component;
+      try {
+        ${code}
+        return InviteComponent || App || Component || null;
+      } catch (error) {
+        console.error('Error in generated component:', error);
+        return null;
+      }
     `,
-    )
+    );
 
     // Execute the function to get the component
-    return componentFunction(React)
+    const Component = componentFunction(React);
+    
+    if (!Component) {
+      throw new Error('No valid component exported from generated code');
+    }
+    
+    return Component;
   } catch (error) {
-    console.error("Error creating component:", error)
-    return null
+    console.error("Error creating component:", error);
+    return null;
   }
-}
+};
 
 export default function InviteRenderer({ inviteId }: InviteRendererProps) {
   const [loading, setLoading] = useState(true)
@@ -45,16 +84,44 @@ export default function InviteRenderer({ inviteId }: InviteRendererProps) {
         setInviteData(data)
         
         if (data.generated_code) {
-          // Create component from the generated code
-          const DynamicComponent = createComponentFromCode(data.generated_code)
+          // Create component from the generated code with error boundary
+          const DynamicComponent = createComponentFromCode(data.generated_code);
 
           if (DynamicComponent) {
-            setInviteComponent(() => DynamicComponent)
+            // Wrap component with error boundary
+            const SafeComponent = () => {
+              try {
+                return React.createElement(DynamicComponent);
+              } catch (error) {
+                console.error('Runtime error in generated component:', error);
+                return React.createElement('div', {
+                  className: 'min-h-screen flex items-center justify-center bg-gray-50'
+                }, React.createElement('div', {
+                  className: 'text-center p-8 bg-white rounded-lg shadow-lg max-w-md'
+                }, [
+                  React.createElement('h2', {
+                    key: 'title',
+                    className: 'text-xl font-semibold text-red-600 mb-4'
+                  }, 'Invite Rendering Error'),
+                  React.createElement('p', {
+                    key: 'message',
+                    className: 'text-gray-600 mb-4'
+                  }, 'There was an error displaying this invitation. Please try refreshing the page.'),
+                  React.createElement('button', {
+                    key: 'refresh',
+                    onClick: () => window.location.reload(),
+                    className: 'px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600'
+                  }, 'Refresh Page')
+                ]));
+              }
+            };
+            
+            setInviteComponent(() => SafeComponent);
           } else {
-            throw new Error("Failed to render invite component")
+            throw new Error("Failed to render invite component");
           }
         } else {
-          throw new Error("No generated code found for this invite")
+          throw new Error("No generated code found for this invite");
         }
       } catch (err) {
         console.error("Error fetching invite:", err)
