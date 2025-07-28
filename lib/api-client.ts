@@ -14,7 +14,7 @@ export interface ApiSuccess<T = any> {
 export type ApiResponse<T = any> = ApiSuccess<T> | ApiError;
 
 // Base API configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 // Custom error class for API errors
 export class APIError extends Error {
