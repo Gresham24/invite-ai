@@ -1,7 +1,19 @@
 import { createClient } from "@supabase/supabase-js"
 
-// Initialize Supabase client
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+// Initialize Supabase clients
+// Public client (browser-safe). Do NOT use this for writes that must bypass RLS.
+export const supabasePublic = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+// Admin client (server-only). Use in API routes; bypasses RLS.
+// IMPORTANT: Never import this file from client components.
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+)
 
 // Storage utilities
 export const StorageUtils = {
@@ -9,7 +21,7 @@ export const StorageUtils = {
    * Upload a single file to Supabase storage
    */
   async uploadFile(fileBuffer: Buffer, filePath: string, contentType: string, bucketName = "invites"): Promise<string> {
-    const { data, error } = await supabase.storage.from(bucketName).upload(filePath, fileBuffer, {
+    const { data, error } = await supabaseAdmin.storage.from(bucketName).upload(filePath, fileBuffer, {
       contentType,
       upsert: true,
       cacheControl: "3600",
@@ -24,7 +36,7 @@ export const StorageUtils = {
    * Get public URL for a file
    */
   getPublicUrl(filePath: string, bucketName = "invites"): string {
-    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath)
+    const { data } = supabaseAdmin.storage.from(bucketName).getPublicUrl(filePath)
 
     return data.publicUrl
   },
@@ -33,7 +45,7 @@ export const StorageUtils = {
    * Delete files from storage
    */
   async deleteFiles(filePaths: string[], bucketName = "invites"): Promise<boolean> {
-    const { error } = await supabase.storage.from(bucketName).remove(filePaths)
+    const { error } = await supabaseAdmin.storage.from(bucketName).remove(filePaths)
 
     if (error) throw error
     return true
@@ -43,7 +55,7 @@ export const StorageUtils = {
    * List all files in a directory
    */
   async listFiles(path: string, bucketName = "invites") {
-    const { data, error } = await supabase.storage.from(bucketName).list(path, {
+    const { data, error } = await supabaseAdmin.storage.from(bucketName).list(path, {
       limit: 100,
       offset: 0,
     })
@@ -56,7 +68,7 @@ export const StorageUtils = {
    * Get signed URL for temporary access
    */
   async getSignedUrl(filePath: string, expiresIn = 3600, bucketName = "invites"): Promise<string> {
-    const { data, error } = await supabase.storage.from(bucketName).createSignedUrl(filePath, expiresIn)
+    const { data, error } = await supabaseAdmin.storage.from(bucketName).createSignedUrl(filePath, expiresIn)
 
     if (error) throw error
     return data.signedUrl
@@ -69,7 +81,7 @@ export const DatabaseUtils = {
    * Save invite to database
    */
   async saveInvite(inviteData: any) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("invites")
       .insert({
         id: inviteData.id,
@@ -88,7 +100,7 @@ export const DatabaseUtils = {
    * Get invite from database
    */
   async getInvite(inviteId: string) {
-    const { data, error } = await supabase.from("invites").select("*").eq("id", inviteId).eq("is_active", true).single()
+    const { data, error } = await supabaseAdmin.from("invites").select("*").eq("id", inviteId).eq("is_active", true).single()
 
     if (error) throw error
     return data
@@ -98,7 +110,7 @@ export const DatabaseUtils = {
    * Update invite view count
    */
   async incrementViewCount(inviteId: string): Promise<void> {
-    const { error } = await supabase.rpc("increment_view_count", {
+    const { error } = await supabaseAdmin.rpc("increment_view_count", {
       invite_id: inviteId,
     })
 
@@ -109,7 +121,7 @@ export const DatabaseUtils = {
    * Get user's invites
    */
   async getUserInvites(userEmail: string, limit = 10) {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("invites")
       .select("id, form_data, created_at, view_count")
       .eq("user_email", userEmail)
@@ -125,7 +137,7 @@ export const DatabaseUtils = {
    * Soft delete invite
    */
   async deleteInvite(inviteId: string): Promise<boolean> {
-    const { error } = await supabase.from("invites").update({ is_active: false }).eq("id", inviteId)
+    const { error } = await supabaseAdmin.from("invites").update({ is_active: false }).eq("id", inviteId)
 
     if (error) throw error
     return true
@@ -135,7 +147,7 @@ export const DatabaseUtils = {
    * Get invite analytics
    */
   async getInviteAnalytics(inviteId: string) {
-    const { data, error } = await supabase.from("invites").select("view_count, created_at").eq("id", inviteId).single()
+    const { data, error } = await supabaseAdmin.from("invites").select("view_count, created_at").eq("id", inviteId).single()
 
     if (error) throw error
 
@@ -239,7 +251,7 @@ export const CleanupUtils = {
     cutoffDate.setDate(cutoffDate.getDate() - daysOld)
 
     // Get old invites
-    const { data: oldInvites, error } = await supabase
+    const { data: oldInvites, error } = await supabaseAdmin
       .from("invites")
       .select("id")
       .lt("created_at", cutoffDate.toISOString())
@@ -272,7 +284,8 @@ export const CleanupUtils = {
 }
 
 export default {
-  supabase,
+  // Expose the public client if anything relies on it elsewhere
+  supabase: supabasePublic,
   StorageUtils,
   DatabaseUtils,
   BatchOperations,
