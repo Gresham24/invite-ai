@@ -260,7 +260,7 @@ const AILoadingScreen = ({
           >
             Please wait while we craft your perfect invitation.
             <br />
-            This usually takes 10-15 seconds.
+            This usually takes 30-40 seconds.
           </motion.p>
         </div>
 
