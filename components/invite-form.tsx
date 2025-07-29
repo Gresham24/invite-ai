@@ -39,13 +39,43 @@ const AIInviteForm = () => {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Load recovered form data on component mount
+  useEffect(() => {
+    const recoveredData = localStorage.getItem('invite_form_data_recovery');
+    if (recoveredData) {
+      try {
+        const parsedData = JSON.parse(recoveredData);
+        const now = Date.now();
+        const dataAge = now - (parsedData.timestamp || 0);
+        
+        // Only recover data if it's less than 24 hours old
+        if (dataAge < 24 * 60 * 60 * 1000) {
+          // Remove timestamp before setting form data
+          const { timestamp, ...formDataToRecover } = parsedData;
+          setFormData(prev => ({
+            ...prev,
+            ...formDataToRecover
+          }));
+          
+          // Show a toast to let user know data was recovered
+          toast({
+            title: "Form data recovered!",
+            description: "Your previous event details have been restored.",
+            duration: 4000,
+          });
+        }
+        
+        // Clear the recovery data after use (whether successful or expired)
+        localStorage.removeItem('invite_form_data_recovery');
+      } catch (error) {
+        console.error('Error recovering form data:', error);
+        localStorage.removeItem('invite_form_data_recovery');
+      }
+    }
+  }, [toast]);
+
   // Color schemes data
   const colorSchemes = [
-    {
-      name: "Elegant",
-      colors: ["#1a1a1a", "#4a4a4a", "#e5e5e5"],
-      description: "Sophisticated black, gray, and white"
-    },
     {
       name: "Vibrant",
       colors: ["#ef4444", "#3b82f6", "#f97316"],
@@ -85,11 +115,6 @@ const AIInviteForm = () => {
       name: "Monochrome",
       colors: ["#000000", "#6b7280", "#ffffff"],
       description: "Classic black and white"
-    },
-    {
-      name: "Autumn",
-      colors: ["#dc2626", "#f59e0b", "#92400e"],
-      description: "Warm autumn colors"
     }
   ];
 
@@ -111,6 +136,58 @@ const AIInviteForm = () => {
   const prevColorScheme = () => {
     setColorSchemeIndex((prev) => (prev - 1 + Math.ceil(colorSchemes.length / 4)) % Math.ceil(colorSchemes.length / 4));
   };
+
+  // Auto-save form data to localStorage
+  useEffect(() => {
+    const saveFormData = () => {
+      const dataToSave = {
+        ...formData,
+        timestamp: Date.now(),
+        // Don't save uploaded files to localStorage (they're too large)
+        heroImage: null,
+        eventLogo: null,
+        themeImages: [],
+        additionalImages: []
+      };
+      localStorage.setItem('invite_form_draft', JSON.stringify(dataToSave));
+    };
+
+    // Only save if there's meaningful data
+    if (formData.eventTitle || formData.eventDescription || formData.venue) {
+      const timeoutId = setTimeout(saveFormData, 1000); // Debounce saving
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData]);
+
+  // Load draft data on mount (if no recovery data was loaded)
+  useEffect(() => {
+    const draftData = localStorage.getItem('invite_form_draft');
+    if (draftData && !localStorage.getItem('invite_form_data_recovery')) {
+      try {
+        const parsedData = JSON.parse(draftData);
+        const now = Date.now();
+        const dataAge = now - (parsedData.timestamp || 0);
+        
+        // Only load draft if it's less than 7 days old and has meaningful content
+        if (dataAge < 7 * 24 * 60 * 60 * 1000 && (parsedData.eventTitle || parsedData.eventDescription)) {
+          const { timestamp, ...draftFormData } = parsedData;
+          setFormData(prev => ({
+            ...prev,
+            ...draftFormData
+          }));
+          
+          toast({
+            title: "Draft restored",
+            description: "Your previous work has been restored from draft.",
+            duration: 3000,
+          });
+        }
+      } catch (error) {
+        console.error('Error loading draft data:', error);
+        localStorage.removeItem('invite_form_draft');
+      }
+    }
+  }, [toast]);
 
   // Handle input changes
   const handleInputChange = (field, value) => {
@@ -223,6 +300,9 @@ const AIInviteForm = () => {
         description: "Your invitation has been generated successfully.",
         duration: 3000,
       });
+      
+      // Clear draft data since form was successfully submitted
+      localStorage.removeItem('invite_form_draft');
       
       // Wait a moment for the loading screen to complete
       setTimeout(() => {
@@ -880,7 +960,7 @@ const AIInviteForm = () => {
                     <div>
                       <h4 className="font-semibold text-blue-800">Ready to Generate</h4>
                       <p className="text-blue-700 text-sm mt-1">
-                        Our AI will create a beautiful, mobile-first invitation based on your inputs. This usually takes 10-15 seconds.
+                        Our AI will create an awesome invitation based on your details. This usually takes 30-40 seconds.
                       </p>
                     </div>
                   </div>

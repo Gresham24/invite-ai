@@ -87,6 +87,7 @@ export const DatabaseUtils = {
         id: inviteData.id,
         form_data: inviteData.formData,
         generated_code: inviteData.generatedCode,
+        rendered_html: inviteData.renderedHtml, // Add rendered HTML field
         user_email: inviteData.userEmail || null,
       })
       .select()

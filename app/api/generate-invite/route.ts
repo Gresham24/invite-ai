@@ -132,7 +132,7 @@ REQUIRED SECTIONS:
    - Dynamic countdown to ${formattedDate} at ${formattedTime}
    - Elegant display with days, hours, minutes, seconds
    - Zero state message when event arrives: "The celebration has begun!"
-   - Use setInterval to update every second
+   - Use JavaScript setInterval to update every second
    - Visual emphasis with animations
 
 4. Venue/Location Section
@@ -163,11 +163,13 @@ TECHNICAL REQUIREMENTS:
 - Mobile-first responsive design (test on 375px width)
 - Use Tailwind CSS for styling
 - Smooth scrolling between sections
-- Loading animation (2-3 seconds)
+- Loading animation (2-3 seconds)  
 - Back to top button
 - SEO-friendly structure
 - Accessibility considerations (ARIA labels, semantic HTML)
-- Use React hooks (useState, useEffect) for interactivity
+- Use JSX syntax freely (< > tags are fine)
+- Use React hooks (useState, useEffect) for interactivity and countdown timer
+- Include inline JavaScript for countdown functionality
 
 IMAGES TO INCORPORATE:
 ${uploadedImages.hero ? `- Hero background: Use the provided hero image URL as main background with overlay for readability` : "- Create an elegant gradient or pattern background that matches the color scheme"}
@@ -228,19 +230,97 @@ export async function POST(request: NextRequest) {
 
     const generatedCode = response.content[0].type === "text" ? response.content[0].text : ""
 
-    // Clean up the generated code
+    // Clean up the generated code more thoroughly
     const cleanCode = generatedCode
-      .replace(/```jsx\n?/g, "")
-      .replace(/```tsx\n?/g, "")
-      .replace(/```javascript\n?/g, "")
+      // Remove markdown code blocks
+      .replace(/```jsx\n?/gi, "")
+      .replace(/```tsx\n?/gi, "")
+      .replace(/```javascript\n?/gi, "")
+      .replace(/```js\n?/gi, "")
+      .replace(/```react\n?/gi, "")
       .replace(/```\n?/g, "")
+      // Remove any leading/trailing explanatory text
+      .replace(/^.*?(?=import|const|function|class|export)/s, "")
+      .replace(/^.*?(?=\/\/|\/\*|\s*const|\s*function|\s*class|\s*export)/s, "")
+      // Clean up extra whitespace
       .trim()
+      
+    console.log('Original generated code length:', generatedCode.length)
+    console.log('Cleaned code length:', cleanCode.length)
+    console.log('Cleaned code preview:', cleanCode.substring(0, 500))
+
+    // Generate complete HTML page with the JSX component embedded
+    const formattedDate = enrichedFormData.eventDate ? new Date(enrichedFormData.eventDate).toLocaleDateString('en-US', { 
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    }) : enrichedFormData.eventDate;
+
+    const renderedHtml = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${enrichedFormData.eventTitle || 'Event Invitation'}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+        <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+        <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+      </head>
+      <body>
+        <div id="invite-root"></div>
+        <script type="text/babel">
+          const { useState, useEffect } = React;
+          
+          ${cleanCode}
+          
+          // Render the component
+          const inviteComponent = typeof InviteComponent !== 'undefined' ? InviteComponent : 
+                                 typeof Component !== 'undefined' ? Component : 
+                                 typeof App !== 'undefined' ? App : null;
+          
+          if (inviteComponent) {
+            ReactDOM.render(React.createElement(inviteComponent), document.getElementById('invite-root'));
+          } else {
+            // Fallback HTML if component fails
+            document.getElementById('invite-root').innerHTML = \`
+              <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                <div class="max-w-md mx-auto bg-white rounded-lg shadow-lg overflow-hidden mt-8">
+                  <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-6 text-white text-center">
+                    <h1 class="text-2xl font-bold mb-2">${enrichedFormData.eventTitle || 'Event Invitation'}</h1>
+                    <p class="text-blue-100">${formattedDate && enrichedFormData.eventTime ? `${formattedDate} at ${enrichedFormData.eventTime}` : 'Date & Time TBD'}</p>
+                  </div>
+                  <div class="p-6">
+                    <div class="mb-4">
+                      <h2 class="text-lg font-semibold text-gray-800 mb-2">Event Details</h2>
+                      ${enrichedFormData.venue ? `<p class="text-gray-600 mb-2">📍 ${enrichedFormData.venue}</p>` : ''}
+                      ${enrichedFormData.eventDescription ? `<p class="text-gray-700 mb-4">${enrichedFormData.eventDescription}</p>` : ''}
+                      ${enrichedFormData.dressCode ? `<p class="text-gray-600 mb-2">👔 Dress Code: ${enrichedFormData.dressCode}</p>` : ''}
+                    </div>
+                    ${(enrichedFormData.rsvpWhatsApp || enrichedFormData.rsvpContact) ? `
+                      <div class="border-t pt-4">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">RSVP</h3>
+                        ${enrichedFormData.rsvpWhatsApp ? `<a href="https://wa.me/${enrichedFormData.rsvpWhatsApp.replace(/[^0-9]/g, '')}?text=Hi! I'd like to RSVP for ${enrichedFormData.eventTitle}" class="block w-full bg-green-500 text-white text-center py-2 px-4 rounded mb-2 hover:bg-green-600 transition-colors">💬 RSVP via WhatsApp</a>` : ''}
+                        ${enrichedFormData.rsvpContact ? `<a href="tel:${enrichedFormData.rsvpContact}" class="block w-full bg-blue-500 text-white text-center py-2 px-4 rounded hover:bg-blue-600 transition-colors">📞 Call to RSVP</a>` : ''}
+                      </div>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            \`;
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    console.log('Generated complete HTML page, length:', renderedHtml.length);
 
     // Prepare invite data
     const inviteData = {
       id: inviteId,
       formData: enrichedFormData,
-      generatedCode: cleanCode,
+      generatedCode: cleanCode, // Keep original code for reference
+      renderedHtml: renderedHtml, // Add rendered HTML
       userEmail: formData.userEmail || null,
     }
 
