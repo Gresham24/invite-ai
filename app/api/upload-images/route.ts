@@ -1,11 +1,21 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { v4 as uuidv4 } from "uuid"
 import { BatchOperations } from "@/lib/supabase-utils"
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const inviteId = uuidv4()
+    const inviteId = formData.get("inviteId") as string
+    
+    // Validate that inviteId was provided
+    if (!inviteId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Missing inviteId parameter",
+        },
+        { status: 400 }
+      )
+    }
 
     // Convert FormData to the expected format
     const files: any = {}

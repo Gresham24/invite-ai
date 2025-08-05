@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import AILoadingScreen from "./load-screen";
@@ -425,8 +425,20 @@ const AIInviteForm = () => {
   };
 
   // File preview component
-  const FilePreview = ({ file, onRemove, type = "image" }) => {
+  const FilePreview = React.memo(({ file, onRemove, type = "image" }) => {
     if (!file) return null;
+
+    const [previewUrl, setPreviewUrl] = React.useState('')
+
+    React.useEffect(() => {
+      const url = URL.createObjectURL(file)
+      setPreviewUrl(url)
+      
+      // Cleanup function to revoke URL when component unmounts
+      return () => {
+        URL.revokeObjectURL(url)
+      }
+    }, [file])
 
     return (
       <motion.div
@@ -437,7 +449,7 @@ const AIInviteForm = () => {
       >
         <div className="aspect-video rounded bg-gray-100 overflow-hidden">
           <img
-            src={URL.createObjectURL(file)}
+            src={previewUrl}
             alt="Preview"
             className="w-full h-full object-cover"
           />
@@ -451,7 +463,7 @@ const AIInviteForm = () => {
         <p className="text-xs text-gray-500 mt-1 truncate">{file.name}</p>
       </motion.div>
     );
-  };
+  });
 
   // Form steps
   const steps = [

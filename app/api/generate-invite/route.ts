@@ -329,7 +329,14 @@ export async function POST(request: NextRequest) {
       await DatabaseUtils.saveInvite(inviteData)
     } catch (dbError) {
       console.error("Error saving to database:", dbError)
-      // Continue even if database save fails
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to save invite to database",
+          details: dbError instanceof Error ? dbError.message : String(dbError)
+        },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
